@@ -133,17 +133,17 @@ async function fetchAndAnalyzeHTML(url: string): Promise<{
   const ogTitle = $('meta[property="og:title"]').attr("content");
   const twitterCard = $('meta[name="twitter:card"]').attr("content");
 
-  const internalLinks = $("a[href]").filter(
-    (_, el) =>
-      $(el).attr("href")?.startsWith("/") ||
-      $(el).attr("href")?.includes(new URL(url).hostname)
-  ).length;
-
-  const externalLinks = $("a[href]").filter(
-    (_, el) =>
-      $(el).attr("href")?.startsWith("http") &&
-      !$(el).attr("href")?.includes(new URL(url).hostname)
-  ).length;
+  const hostname = new URL(url).hostname;
+  let internalLinks = 0;
+  let externalLinks = 0;
+  $("a[href]").each((_, el) => {
+    const href = $(el).attr("href") || "";
+    if (href.startsWith("/") || href.includes(hostname)) {
+      internalLinks++;
+    } else if (href.startsWith("http")) {
+      externalLinks++;
+    }
+  });
 
   const seo: SEOAnalysis = {
     title,
