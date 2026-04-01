@@ -119,7 +119,14 @@ async function fetchAndAnalyzeHTML(url: string): Promise<{
   techStack: TechStackInfo;
   security: SecurityInfo;
 }> {
-  const response = await fetch(url, {
+  // Validate URL to prevent SSRF — only allow http/https
+  const parsedUrl = new URL(url);
+  if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
+    throw new Error("Only HTTP and HTTPS URLs are allowed");
+  }
+  const safeUrl = parsedUrl.toString();
+
+  const response = await fetch(safeUrl, {
     signal: AbortSignal.timeout(15000),
     headers: {
       "User-Agent":
