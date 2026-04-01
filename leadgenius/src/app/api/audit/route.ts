@@ -27,10 +27,27 @@ export async function POST(request: NextRequest) {
     // Normalize URL
     const normalizedUrl = url.startsWith("http") ? url : `https://${url}`;
 
+    // Validate URL: only allow http/https schemes to prevent SSRF
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(normalizedUrl);
+    } catch {
+      return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
+    }
+
+    if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
+      return NextResponse.json(
+        { error: "Only HTTP and HTTPS URLs are allowed" },
+        { status: 400 }
+      );
+    }
+
+    const safeUrl = parsedUrl.toString();
+
     // Run Lighthouse and HTML scraping in parallel
     const [lighthouseData, htmlData] = await Promise.allSettled([
-      fetchLighthouseData(normalizedUrl),
-      fetchAndAnalyzeHTML(normalizedUrl),
+      fetchLighthouseData(safeUrl),
+      fetchAndAnalyzeHTML(safeUrl),
     ]);
 
     const lighthouse: LighthouseScores =
@@ -44,7 +61,7 @@ export async function POST(request: NextRequest) {
         : getDefaultHTMLAnalysis();
 
     const result: AuditResult = {
-      url: normalizedUrl,
+      url: safeUrl,
       timestamp: new Date().toISOString(),
       lighthouse,
       seo,
@@ -274,8 +291,9 @@ async function fetchAndAnalyzeHTML(url: string): Promise<{
     analytics.push("Hotjar");
   }
 
-  // CMS detection
+  // CMS detection - use hostname or distinct path patterns for accuracy
   let cms: string | null = null;
+  const urlHostname = new URL(url).hostname;
   if (
     allScripts.includes("wp-content") ||
     allScripts.includes("wp-includes")
@@ -286,7 +304,13 @@ async function fetchAndAnalyzeHTML(url: string): Promise<{
     cms = `WordPress${wpVersion ? ` ${wpVersion[1]}` : ""}`;
   } else if (allScripts.includes("Shopify")) {
     cms = "Shopify";
-  } else if (allScripts.includes("wix.com")) {
+  } else if (
+    urlHostname.endsWith(".wixsite.com") ||
+    urlHostname.endsWith(".wix.com") ||
+    scriptSrcs.some((s) => {
+      try { return new URL(s, url).hostname.endsWith(".wix.com"); } catch { return false; }
+    })
+  ) {
     cms = "Wix";
   } else if (allScripts.includes("squarespace")) {
     cms = "Squarespace";

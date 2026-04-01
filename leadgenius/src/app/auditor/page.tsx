@@ -20,6 +20,19 @@ import {
   Copy,
 } from "lucide-react";
 
+/** Sanitize a URL to only allow http/https schemes, preventing javascript: XSS */
+function sanitizeUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+      return parsed.toString();
+    }
+  } catch {
+    // invalid URL
+  }
+  return "#";
+}
+
 export default function AuditorPage() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -154,7 +167,7 @@ export default function AuditorPage() {
                     Rapport d&apos;audit
                   </h3>
                   <a
-                    href={result.url}
+                    href={sanitizeUrl(result.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mt-1"
