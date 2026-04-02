@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import TopBar from "@/components/layout/TopBar";
 import { HeatBadge } from "@/components/ui/ScoreRing";
-import { mockLeads } from "@/lib/mock-data";
 import { KANBAN_COLUMNS, type Lead, type KanbanStatus } from "@/types";
 import {
   GripVertical,
@@ -13,14 +12,34 @@ import {
   Phone,
   Globe,
   X,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 export default function KanbanPage() {
-  const [leads, setLeads] = useState<Lead[]>(mockLeads);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<KanbanStatus | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
+
+  const loadLeads = useCallback(async () => {
+    try {
+      const res = await fetch("/api/leads");
+      const data: Lead[] = await res.json();
+      setLeads(data);
+    } catch (err) {
+      console.error("Failed to load leads:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLeads();
+  }, [loadLeads]);
 
   const getColumnLeads = useCallback(
     (status: KanbanStatus) => leads.filter((l) => l.status === status),
@@ -42,10 +61,11 @@ export default function KanbanPage() {
     setDragOverColumn(null);
   };
 
-  const handleDrop = (e: React.DragEvent, newStatus: KanbanStatus) => {
+  const handleDrop = async (e: React.DragEvent, newStatus: KanbanStatus) => {
     e.preventDefault();
     if (!draggedLead) return;
 
+    // Optimistic update
     setLeads((prev) =>
       prev.map((l) =>
         l.id === draggedLead.id
@@ -55,24 +75,85 @@ export default function KanbanPage() {
     );
     setDraggedLead(null);
     setDragOverColumn(null);
+
+    // Persist to API
+    try {
+      await fetch(`/api/leads/${draggedLead.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+    } catch (err) {
+      console.error("Failed to update lead status:", err);
+      loadLeads(); // Reload on error
+    }
   };
 
-  const handleAddLead = (newLead: Partial<Lead>) => {
-    const lead: Lead = {
-      id: Date.now().toString(),
-      company: newLead.company || "Nouvelle entreprise",
-      website: newLead.website || "",
-      contactName: newLead.contactName || "",
-      contactEmail: newLead.contactEmail || "",
-      phone: newLead.phone,
-      heatScore: 0,
-      status: "new",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      notes: newLead.notes,
-    };
-    setLeads((prev) => [...prev, lead]);
+  const handleAddLead = async (newLead: Partial<Lead>) => {
     setShowAddModal(false);
+
+    try {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newLead),
+      });
+      const created: Lead = await res.json();
+      setLeads((prev) => [...prev, created]);
+    } catch (err) {
+      console.error("Failed to create lead:", err);
+      // Fallback: add locally
+      const lead: Lead = {
+        id: Date.now().toString(),
+        company: newLead.company || "Nouvelle entreprise",
+        website: newLead.website || "",
+        contactName: newLead.contactName || "",
+        contactEmail: newLead.contactEmail || "",
+        phone: newLead.phone,
+        heatScore: 0,
+        status: "new",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        notes: newLead.notes,
+      };
+      setLeads((prev) => [...prev, lead]);
+    }
+  };
+
+  const handleEditLead = async (updatedLead: Partial<Lead> & { id: string }) => {
+    setEditingLead(null);
+
+    // Optimistic update
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === updatedLead.id ? { ...l, ...updatedLead, updatedAt: new Date().toISOString() } : l
+      )
+    );
+
+    try {
+      await fetch(`/api/leads/${updatedLead.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedLead),
+      });
+    } catch (err) {
+      console.error("Failed to edit lead:", err);
+      loadLeads();
+    }
+  };
+
+  const handleDeleteLead = async (id: string) => {
+    setSelectedLead(null);
+
+    // Optimistic delete
+    setLeads((prev) => prev.filter((l) => l.id !== id));
+
+    try {
+      await fetch(`/api/leads/${id}`, { method: "DELETE" });
+    } catch (err) {
+      console.error("Failed to delete lead:", err);
+      loadLeads();
+    }
   };
 
   return (
@@ -80,6 +161,12 @@ export default function KanbanPage() {
       <TopBar title="CRM Kanban" />
 
       <main className="flex-1 overflow-x-auto p-6">
+        {loading ? (
+          <div className="flex items-center justify-center h-64 text-zinc-500">
+            Chargement des leads...
+          </div>
+        ) : (
+        <>
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-zinc-500">
             {leads.length} leads au total •{" "}
@@ -181,8 +268,9 @@ export default function KanbanPage() {
             );
           })}
         </div>
+        </>
+        )}
       </main>
-
       {/* Add Lead Modal */}
       {showAddModal && (
         <AddLeadModal
@@ -196,6 +284,20 @@ export default function KanbanPage() {
         <LeadDetailModal
           lead={selectedLead}
           onClose={() => setSelectedLead(null)}
+          onEdit={(lead) => {
+            setSelectedLead(null);
+            setEditingLead(lead);
+          }}
+          onDelete={handleDeleteLead}
+        />
+      )}
+
+      {/* Edit Lead Modal */}
+      {editingLead && (
+        <EditLeadModal
+          lead={editingLead}
+          onClose={() => setEditingLead(null)}
+          onSave={handleEditLead}
         />
       )}
     </div>
@@ -314,21 +416,43 @@ function AddLeadModal({
 function LeadDetailModal({
   lead,
   onClose,
+  onEdit,
+  onDelete,
 }: {
   lead: Lead;
   onClose: () => void;
+  onEdit: (lead: Lead) => void;
+  onDelete: (id: string) => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-lg mx-4 rounded-xl border border-[#27272a] bg-[#18181b] shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#27272a]">
           <h3 className="font-semibold text-zinc-100">{lead.company}</h3>
-          <button
-            onClick={onClose}
-            className="p-1 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-all"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onEdit(lead)}
+              className="p-1.5 rounded text-zinc-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all"
+              title="Modifier"
+            >
+              <Pencil size={16} />
+            </button>
+            <button
+              onClick={() => {
+                if (confirm("Supprimer ce lead ?")) onDelete(lead.id);
+              }}
+              className="p-1.5 rounded text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+              title="Supprimer"
+            >
+              <Trash2 size={16} />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-all"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
         <div className="p-6 space-y-4">
           <div className="flex items-center gap-3">
@@ -404,6 +528,116 @@ function LeadDetailModal({
             </a>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function EditLeadModal({
+  lead,
+  onClose,
+  onSave,
+}: {
+  lead: Lead;
+  onClose: () => void;
+  onSave: (lead: Partial<Lead> & { id: string }) => void;
+}) {
+  const [form, setForm] = useState({
+    company: lead.company,
+    website: lead.website,
+    contactName: lead.contactName,
+    contactEmail: lead.contactEmail,
+    phone: lead.phone || "",
+    notes: lead.notes || "",
+    status: lead.status,
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({ id: lead.id, ...form });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-md mx-4 rounded-xl border border-[#27272a] bg-[#18181b] shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#27272a]">
+          <h3 className="font-semibold text-zinc-100">Modifier le Lead</h3>
+          <button
+            onClick={onClose}
+            className="p-1 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-all"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {[
+            { key: "company", label: "Entreprise *", type: "text", required: true },
+            { key: "website", label: "Site web", type: "url", required: false },
+            { key: "contactName", label: "Nom du contact", type: "text", required: false },
+            { key: "contactEmail", label: "Email", type: "email", required: false },
+            { key: "phone", label: "Téléphone", type: "tel", required: false },
+          ].map((field) => (
+            <div key={field.key}>
+              <label className="text-sm text-zinc-400 mb-1 block">
+                {field.label}
+              </label>
+              <input
+                type={field.type}
+                required={field.required}
+                value={form[field.key as keyof typeof form]}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    [field.key]: e.target.value,
+                  }))
+                }
+                className="w-full px-4 py-2.5 bg-[#09090b] border border-[#27272a] rounded-lg text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition-all text-sm"
+              />
+            </div>
+          ))}
+
+          <div>
+            <label className="text-sm text-zinc-400 mb-1 block">Statut</label>
+            <select
+              value={form.status}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, status: e.target.value as KanbanStatus }))
+              }
+              className="w-full px-4 py-2.5 bg-[#09090b] border border-[#27272a] rounded-lg text-zinc-200 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition-all text-sm"
+            >
+              {KANBAN_COLUMNS.map((col) => (
+                <option key={col.id} value={col.id}>
+                  {col.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <textarea
+            placeholder="Notes..."
+            value={form.notes}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, notes: e.target.value }))
+            }
+            rows={3}
+            className="w-full px-4 py-2.5 bg-[#09090b] border border-[#27272a] rounded-lg text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition-all text-sm resize-none"
+          />
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 border border-[#27272a] rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-all text-sm"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-medium transition-all text-sm"
+            >
+              Enregistrer
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

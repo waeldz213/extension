@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  Zap,
+  Lock,
   Search,
   MessageSquare,
   Columns3,
@@ -16,10 +16,10 @@ export default function Home() {
       {/* Nav */}
       <nav className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-            <Zap size={20} className="text-white" />
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-600 to-gray-900 flex items-center justify-center">
+            <Lock size={20} className="text-white" />
           </div>
-          <span className="text-xl font-bold gradient-text">LeadGenius</span>
+          <span className="text-xl font-bold gradient-text">DSFGenius</span>
         </div>
         <Link
           href="/dashboard"
@@ -40,7 +40,7 @@ export default function Home() {
           <span className="gradient-text">l&apos;IA qui analyse vraiment</span>
         </h1>
         <p className="text-lg text-zinc-400 max-w-2xl mx-auto mb-10">
-          LeadGenius audite les sites de vos prospects, d&eacute;tecte leurs failles
+          DSFGenius audite les sites de vos prospects, d&eacute;tecte leurs failles
           techniques, et g&eacute;n&egrave;re des pitchs personnalis&eacute;s qui convertissent.
           Pas du texte g&eacute;n&eacute;rique &mdash; de l&apos;analyse r&eacute;elle.
         </p>
@@ -159,7 +159,7 @@ export default function Home() {
             </div>
             <div>
               <h3 className="text-sm font-medium text-emerald-400 mb-3 uppercase tracking-wider">
-                LeadGenius (IA Deep)
+                DSFGenius (IA Deep)
               </h3>
               <ul className="space-y-2 text-sm text-zinc-300">
                 <li>
@@ -190,14 +190,14 @@ export default function Home() {
           href="/dashboard"
           className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl font-medium text-lg transition-all"
         >
-          Lancer LeadGenius
+          Lancer DSFGenius
           <ArrowRight size={20} />
         </Link>
       </section>
 
       {/* Footer */}
       <footer className="border-t border-zinc-800 py-8 px-6 text-center text-sm text-zinc-600">
-        &copy; 2026 LeadGenius. Fait avec Next.js, Tailwind CSS et l&apos;IA.
+        &copy; 2026 DSFGenius. Fait avec Next.js, Tailwind CSS et l&apos;IA.
       </footer>
     </div>
   );
