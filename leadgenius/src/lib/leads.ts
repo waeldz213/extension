@@ -105,7 +105,7 @@ export async function updateLead(
 ): Promise<Lead | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  const payload: Record<string, unknown> = {};
   if (updates.company !== undefined) payload.company = updates.company;
   if (updates.website !== undefined) payload.website = updates.website;
   if (updates.contactName !== undefined) payload.contact_name = updates.contactName;
