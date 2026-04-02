@@ -10,7 +10,7 @@ import {
   Columns3,
   ChevronLeft,
   ChevronRight,
-  Zap,
+  Lock,
   Settings,
   LogOut,
 } from "lucide-react";
@@ -38,12 +38,12 @@ export default function Sidebar() {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 h-16 border-b border-[#27272a]">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-          <Zap size={18} className="text-white" />
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-gray-900 flex items-center justify-center flex-shrink-0">
+          <Lock size={18} className="text-white" />
         </div>
         {!collapsed && (
           <span className="text-lg font-bold gradient-text whitespace-nowrap">
-            LeadGenius
+            DSFGenius
           </span>
         )}
       </div>

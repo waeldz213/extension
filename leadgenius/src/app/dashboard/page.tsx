@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import {
   Users,
   Flame,
@@ -10,14 +11,43 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import { StatCard, HeatBadge } from "@/components/ui/ScoreRing";
-import { mockLeads, mockDashboardStats } from "@/lib/mock-data";
+import type { Lead, DashboardStats } from "@/types";
 import Link from "next/link";
 
 export default function DashboardPage() {
-  const stats = mockDashboardStats;
-  const topLeads = [...mockLeads]
-    .sort((a, b) => b.heatScore - a.heatScore)
-    .slice(0, 5);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalLeads: 0,
+    hotLeads: 0,
+    contactedToday: 0,
+    conversionRate: 0,
+    avgHeatScore: 0,
+  });
+  const [topLeads, setTopLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = useCallback(async () => {
+    try {
+      const [statsRes, leadsRes] = await Promise.all([
+        fetch("/api/stats"),
+        fetch("/api/leads"),
+      ]);
+      const statsData: DashboardStats = await statsRes.json();
+      const leadsData: Lead[] = await leadsRes.json();
+
+      setStats(statsData);
+      setTopLeads(
+        [...leadsData].sort((a, b) => b.heatScore - a.heatScore).slice(0, 5)
+      );
+    } catch (err) {
+      console.error("Dashboard load error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const recentActivity = [
     {
@@ -51,6 +81,12 @@ export default function DashboardPage() {
       <TopBar title="Command Center" />
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
+        {loading ? (
+          <div className="flex items-center justify-center h-64 text-zinc-500">
+            Chargement des données...
+          </div>
+        ) : (
+        <>
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
@@ -200,6 +236,8 @@ export default function DashboardPage() {
             </p>
           </Link>
         </div>
+        </>
+        )}
       </main>
     </div>
   );

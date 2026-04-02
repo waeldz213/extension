@@ -3,7 +3,7 @@ import "./globals.css";
 import AppShell from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
-  title: "LeadGenius — Prospection IA pour Agences Web",
+  title: "DSFGenius — Prospection IA pour Agences Web",
   description:
     "Plateforme SaaS de prospection intelligente. Audit de sites, génération de pitchs par IA, CRM Kanban. Surpassez la concurrence.",
 };

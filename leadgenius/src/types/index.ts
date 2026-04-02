@@ -1,5 +1,5 @@
 // ============================================
-// LeadGenius - Type Definitions
+// DSFGenius - Type Definitions
 // ============================================
 
 export interface Lead {

@@ -130,7 +130,7 @@ async function fetchAndAnalyzeHTML(url: string): Promise<{
     signal: AbortSignal.timeout(15000),
     headers: {
       "User-Agent":
-        "Mozilla/5.0 (compatible; LeadGenius/1.0; +https://leadgenius.app)",
+        "Mozilla/5.0 (compatible; DSFGenius/1.0; +https://dsfgenius.app)",
     },
   });
 
